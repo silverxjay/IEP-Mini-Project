@@ -5,6 +5,7 @@
 // Description
 
 #define LED_YELLOW 7
+#define BUTTON_K2 9
 #include <math.h>
 #include <Wire.h>
 
@@ -19,22 +20,33 @@ NTC temper(NTC_PIN);
 TM1637 disp(CLK,DIO);
 
 #define LIGHTSENSOR_PIN A2
-LightSensor lightsensor(LIGHTSENSOR_PIN);
+LightSensor lightsensor(LIGHTSENSOR_PIN); 
+int toggle = 0;
 
 void setup() {
 Serial.begin(9600);
 pinMode(LED_YELLOW, OUTPUT); 
-
+pinMode(BUTTON_K2, INPUT_PULLUP);
 disp.init(); 
 
 }
 
-void loop() {
+void loop() { 
+float Rsensor = lightsensor.getRes(); 
+float lux;
 //--------Light Dependant LED------
-
+if (digitalRead(BUTTON_K2) == 0)
+{
+ if (toggle == 0)
+  toggle = 1;
+else 
+toggle = 0;
+delay (300);
+while (digitalRead(BUTTON_K2) == 0);
+}
+if (toggle == 1){
 //Read light level
-  float Rsensor = lightsensor.getRes(); 
-  float lux;
+
   lux = 325*pow(Rsensor,-1.4); //Calculate lux value
   
   Serial.print("Illuminance is almost "); 
@@ -48,33 +60,8 @@ void loop() {
   else
     digitalWrite(LED_YELLOW, LOW);
 
-//-----Temperature Dependant Fan-----  
-
-//Read temperature
-float celsius; 
-  celsius = temper.getTemperature();
-  displayTemperature((int8_t)celsius);
-  delay(1000);
+}
+else
+digitalWrite(LED_YELLOW, LOW);
 }
 
-/************************************************* *********************/
-/* Function: Display temperature on 4-digit digital tube */
-/* Parameter: -int8_t temperature, temperature range is -40 ~ 125 degrees celsius */
-/* Return Value: void */
-
-void displayTemperature(int8_t temperature)
-{
-  int8_t temp[4];
-  if(temperature < 0)
-	{
-		temp[0] = INDEX_NEGATIVE_SIGN;
-		temperature = abs(temperature);
-	}
-	else if(temperature < 100)temp[0] = INDEX_BLANK;
-	else temp[0] = temperature/100;
-	temperature %= 100;
-	temp[1] = temperature / 10;
-	temp[2] = temperature % 10;
-	temp[3] = 12;	          //index of 'C' for celsius degree symbol.
-	disp.display(temp);
-}
