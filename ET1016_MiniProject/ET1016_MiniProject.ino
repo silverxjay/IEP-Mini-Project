@@ -1,4 +1,4 @@
-// Title
+// Smart Home Light and Fan
 // Mak Si Jie, Harold Mah
 // 2516477, 2517100
 // DCEP/FT/1A/09
@@ -11,6 +11,7 @@
 #include "RichShieldLightSensor.h"
 #include "RichShieldTM1637.h"
 #include "RichShieldNTC.h"
+#include "RichShieldPassiveBuzzer.h"
 
 #define LED_YELLOW 7
 #define BUTTON_K1 8
@@ -19,16 +20,19 @@
 #define CLK 10//CLK of the TM1637 IC connect to D10 of OPEN-SMART UNO R3
 #define DIO 11
 #define LIGHTSENSOR_PIN A2
+#define PassiveBuzzerPin 3
 
 NTC temper(NTC_PIN);
 TM1637 disp(CLK,DIO);
 LightSensor lightsensor(LIGHTSENSOR_PIN); 
 PCA9685 pwmController(Wire);
 PCA9685_ServoEval pwmServo1;
+PassiveBuzzer buz(PassiveBuzzerPin);
 
 int toggle_blue = 0;
 int toggle_yellow = 0;
-int i; //for motor loop
+int i; //for motor movement
+int t; //for looping motor
 
 void setup() {
 Serial.begin(9600);
@@ -92,9 +96,18 @@ delay(0);
 if (digitalRead(BUTTON_K1) == 0) 
 {
   if (toggle_blue == 0)
+  {
     toggle_blue = 1;
+    //Buzzer short beep to indicate fan on
+    buz.playTone(1000,100);
+  }
   else 
+  {
     toggle_blue = 0;
+    //Buzzer long beep to indicate fan off
+    buz.playTone(1000,500);
+  }
+  
   delay (300);
   while (digitalRead(BUTTON_K1) == 0);
 }
@@ -104,46 +117,31 @@ if (toggle_blue == 1) //When blue button is toggled on, temperature sensor is on
   if (celsius > 26)
   {
     //Lower Servo (Channel 1) Control
-
-    for (i = 0; i <= 90; i += 5) { //Slow Turn anti-clockwise (from 0 to 90 degree
+    for (t=0; t <= 1; t+=1){
+      for (i = 0; i <= 90; i += 5) { //Slow Turn anti-clockwise (from 0 to 90 degree
         pwmController.setChannelPWM(1, pwmServo1.pwmForAngle(i));
-        delay(250);  //longer delay for Slow turn movement
-    }
+        delay(50);  //longer delay for Slow turn movement
+      }
 
-    for (i = 90; i >= 0; i -= 5) { //Fast Turn clockwise (from 90 to 0 degree)
+      for (i = 90; i >= 0; i -= 5) { //Fast Turn clockwise (from 90 to 0 degree)
         pwmController.setChannelPWM(1, pwmServo1.pwmForAngle(i));
-        delay(100); //shorter delay for faster turn movement
-    }
+        delay(50); //shorter delay for faster turn movement
+      }
 
-    for (i = 0; i >= -90; i -= 5) { //Slow Turn clockwise (from 0 to -90 degree)
+      for (i = 0; i >= -90; i -= 5) { //Slow Turn clockwise (from 0 to -90 degree)
         pwmController.setChannelPWM(1, pwmServo1.pwmForAngle(i));
-        delay(250); //longer delay for Slow turn movement
-    }
+        delay(50); //longer delay for Slow turn movement
+      }
 
-    for (i = -90; i <= 0; i += 5) { //Fast Turn anti-clockwise (from -90 to 0 degree)
+      for (i = -90; i <= 0; i += 5) { //Fast Turn anti-clockwise (from -90 to 0 degree)
         pwmController.setChannelPWM(1, pwmServo1.pwmForAngle(i));
-        delay(100); //shorter delay for faster turn movement
+        delay(50); //shorter delay for faster turn movement
+      } 
     }
+ }
 
-    //Upper servo (Channel 0) control
-
-    for (i = -10; i <= 90; i += 5) { //Slow Turn going downward (from -10 to 90 degree
-        // upper servo (degree of turn is limited (from -10 degree)
-
-        pwmController.setChannelPWM(0, pwmServo1.pwmForAngle(i));
-        delay(250); //longer delay for Slow turn movement
-    }
-
-    for (i = 90; i >= -10; i -= 5) { //Fast Turn raising up (from 90 to -10 degree)
-        pwmController.setChannelPWM(0, pwmServo1.pwmForAngle(i));//upper servo
-        delay(100);  //shorter delay for faster turn movement
-    }
-  }
-  else
-  pwmController.resetDevices();
 }
-else 
-pwmController.resetDevices();
+
 }
 
 void displayTemperature(int8_t temperature)
